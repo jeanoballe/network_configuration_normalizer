@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Folders
+/backup_configuration
+/input_information
+
 # C extensions
 *.so
 
