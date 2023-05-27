@@ -1,7 +1,4 @@
 import re
-import json
-import datetime
-from getpass import getpass
 from netmiko import ConnectHandler
 
 
@@ -750,6 +747,34 @@ class TransitionDevice():
             print("No se pudo obtener/guardar"
                   " la informacion del equipo {}".format(
                         self.mgmt_ip))
+        finally:
+            net_connect.disconnect()
+
+    def deploy_configuration(self, configuration: list = []):
+        if configuration:
+            print("Iniciando el envio de configuracion.")
+            try:
+                access_switch = {
+                    'device_type': 'cisco_ios',
+                    'host': self.mgmt_ip,
+                    'username': self.credentials['username'],
+                    'password': self.credentials['password'],
+                    'global_delay_factor': 2
+                }
+
+                print(f"Conectando al equipo: {self.mgmt_ip}")
+                net_connect = ConnectHandler(**access_switch)
+                net_connect.find_prompt()
+                output = net_connect.send_config_set(configuration)
+                print(output)
+            except BaseException as e:
+                print(e)
+                print(
+                    f"No se logro aplicar la configuracion al equipo {self.mgmt_ip}")
+            finally:
+                net_connect.disconnect()
+        else:
+            print("La configuracion esta vacia.")
 
 
 class S4224(TransitionDevice):
@@ -917,38 +942,3 @@ class LIB4424(TransitionDevice):
             vlan_name = None
 
         return vlans_db
-
-
-if __name__ == "__main__":
-    # TESTING
-    user = input('Enter your username: ')
-    psw = getpass()
-    credentials = {
-        'username': user,
-        'password': psw
-    }
-
-    devide_model = {
-        "device_model_id": 1,
-        "brand": "Transition Networks Inc",
-        "model": "S4224"
-    }
-
-    node = {
-        "device_model_id": 1,
-        "device_model": devide_model,
-        "mgmt_ip": "10.106.37.2",
-        "credentials": credentials
-    }
-    # device_model_id, mgmt_ip, credentials
-    sw = S4224(**node)
-    timestamp = ('{:%d-%m-%Y_%H:%M:%S}'.format(datetime.datetime.now()))
-    result = sw.retrieve_information()
-    json_object = json.dumps(result, indent=4)
-    file_name = "_".join([result['hostname'], timestamp])
-
-    with open("backup_configuration/" + file_name + ".json", "w") as outfile:
-        outfile.write(json_object)
-
-    with open("backup_configuration/" + file_name + ".conf", "w") as outfile:
-        outfile.write(result['configuration']['cnfg_txt'])
