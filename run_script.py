@@ -98,7 +98,7 @@ for data in unique_data:
         "credentials": credentials
     }
     sw = create_device(**node)
-    timestamp = ('{:%d-%m-%Y_%H:%M:%S}'.format(datetime.datetime.now()))
+    timestamp = ('{:%d-%m-%Y_%H_%M_%S}'.format(datetime.datetime.now()))
     result = sw.retrieve_information()
     json_object = json.dumps(result, indent=4)
     file_name = "_".join([result['hostname'], timestamp])
