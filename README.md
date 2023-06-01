@@ -28,7 +28,7 @@ device_model_id,mgmt_ip,port_number
 2,2.2.2.2,7
 ```
 
-- **device_model_id:** ID del modelo del equipo. Deberan utilizar "1" para el modelo 4224 y "3" para el LIB4424.
+- **device_model_id:** ID del modelo del equipo. Deberan utilizar "1" para el modelo 4224 y "6" para el LIB4424.
 - **mgmt_ip:** IP de gestion del equipo.
 - **port_number:** Puerto del equipo que desean normalizar. Solo deberan colocar el numero del puerto, por ejemplo el puerto "GigabitEthernet 1/2" tiene como numero de puerto el numero "2".
 

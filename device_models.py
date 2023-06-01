@@ -4,7 +4,7 @@ DEVICE_MODEL = {
         "brand": "Transition Networks Inc",
         "model": "S4224"
     },
-    "2": {
+    "6": {
         "device_model_id": 6,
         "brand": "Net2Edge",
         "model": "LIB4424"
