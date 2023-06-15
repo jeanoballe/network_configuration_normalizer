@@ -1,6 +1,7 @@
 import datetime
 import json
 import csv
+import sys
 from device_models import DEVICE_MODEL
 from device_factory import create_device
 from getpass import getpass
@@ -100,6 +101,8 @@ for data in unique_data:
     sw = create_device(**node)
     timestamp = ('{:%d-%m-%Y_%H_%M_%S}'.format(datetime.datetime.now()))
     result = sw.retrieve_information()
+    if not result:
+        sys.exit("No hay datos disponibles del equipo.")
     json_object = json.dumps(result, indent=4)
     file_name = "_".join([result['hostname'], timestamp])
 

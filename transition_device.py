@@ -696,7 +696,7 @@ class TransitionDevice():
             }
 
             print("Conectando al equipo: "+self.mgmt_ip)
-
+            net_connect = None
             net_connect = ConnectHandler(**access_switch)
 
             sw_txt_information = {}
@@ -748,7 +748,8 @@ class TransitionDevice():
                   " la informacion del equipo {}".format(
                         self.mgmt_ip))
         finally:
-            net_connect.disconnect()
+            if net_connect:
+                net_connect.disconnect()
 
     def deploy_configuration(self, configuration: list = []):
         if configuration:
@@ -763,6 +764,7 @@ class TransitionDevice():
                 }
 
                 print(f"Conectando al equipo: {self.mgmt_ip}")
+                net_connect = None
                 net_connect = ConnectHandler(**access_switch)
                 net_connect.find_prompt()
                 output = net_connect.send_config_set(configuration)
@@ -772,7 +774,8 @@ class TransitionDevice():
                 print(
                     f"No se logro aplicar la configuracion al equipo {self.mgmt_ip}")
             finally:
-                net_connect.disconnect()
+                if net_connect:
+                    net_connect.disconnect()
         else:
             print("La configuracion esta vacia.")
 
