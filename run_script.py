@@ -2,6 +2,7 @@ import datetime
 import json
 import csv
 import sys
+import time
 from device_models import DEVICE_MODEL
 from device_factory import create_device
 from getpass import getpass
@@ -71,7 +72,7 @@ def config_interface_template(interface_name: str, device_model_id: str):
 
     return config
 
-
+device_delay = 15
 file_path = 'input_information/data.csv'
 print(f"- Leyendo informacion de archivo: {file_path}")
 csv_data = read_csv_file(file_path)
@@ -90,60 +91,81 @@ credentials = {
 config_change_ports = []
 print(f"- Tomando informacion de los dispositivos...")
 for data in unique_data:
-    print("#" * 30)
+    try:
+        print("#" * 30)
 
-    node = {
-        "device_model_id": data['device_model_id'],
-        "device_model": DEVICE_MODEL[data['device_model_id']],
-        "mgmt_ip": data['mgmt_ip'],
-        "credentials": credentials
-    }
-    sw = create_device(**node)
-    timestamp = ('{:%d-%m-%Y_%H_%M_%S}'.format(datetime.datetime.now()))
-    result = sw.retrieve_information()
-    if not result:
-        sys.exit("No hay datos disponibles del equipo.")
-    json_object = json.dumps(result, indent=4)
-    file_name = "_".join([result['hostname'], timestamp])
+        node = {
+            "device_model_id": data['device_model_id'],
+            "device_model": DEVICE_MODEL[data['device_model_id']],
+            "mgmt_ip": data['mgmt_ip'],
+            "credentials": credentials
+        }
+        sw = create_device(**node)
+        timestamp = ('{:%d-%m-%Y_%H_%M_%S}'.format(datetime.datetime.now()))
+        result = sw.retrieve_information()
+        if not result:
+            sys.exit("No hay datos disponibles del equipo.")
+        json_object = json.dumps(result, indent=4)
+        file_name = "_".join([result['hostname'], timestamp])
 
-    with open("backup_configuration/" + file_name + ".json", "w") as outfile:
-        outfile.write(json_object)
+        with open("backup_configuration/" + file_name + ".json", "w") as outfile:
+            outfile.write(json_object)
 
-    with open("backup_configuration/" + file_name + ".conf", "w") as outfile:
-        outfile.write(result['configuration']['cnfg_txt'])
+        with open("backup_configuration/" + file_name + ".conf", "w") as outfile:
+            outfile.write(result['configuration']['cnfg_txt'])
 
-    node['interfaces'] = []
-    for interfc in csv_data:
-        if interfc['mgmt_ip'] == data['mgmt_ip']:
-            node['hostname'] = result['hostname']
-            for if_status in result['interface_status']['interfaces']:
-                csv_if_name = f"GigabitEthernet 1/{interfc['port_number']}"
-                if if_status['interface_full_name'] == csv_if_name:
-                    node['interfaces'].append(
-                        dict(
-                            interface_full_name=if_status['interface_full_name'],
-                            link_state=if_status['link_state']
+        node['interfaces'] = []
+        for interfc in csv_data:
+            if interfc['mgmt_ip'] == data['mgmt_ip']:
+                node['hostname'] = result['hostname']
+                for if_status in result['interface_status']['interfaces']:
+                    csv_if_name = f"GigabitEthernet 1/{interfc['port_number']}"
+                    if if_status['interface_full_name'] == csv_if_name:
+                        node['interfaces'].append(
+                            dict(
+                                interface_full_name=if_status['interface_full_name'],
+                                link_state=if_status['link_state']
+                            )
                         )
-                    )
-
-    config_change_ports.append(node)
+        config_change_ports.append(node)
+    except Exception as e:
+        print(f"Error al intentar aplicar la configuracion sobre el equipo {data['mgmt_ip']}: {e}")
+        continue
 
 print(f"- Estado actual de los puertos:")
 for if_cnfig in config_change_ports:
     for port in if_cnfig['interfaces']:
         print(f"\t -IP Mgmt: {if_cnfig['mgmt_ip']} | Hostname: {if_cnfig['hostname']} | Puerto {port['interface_full_name']} | Estado del puerto: {port['link_state']}")
+
+
+
 print(f"- Normalizando configuracion de los puertos..")
 for if_cnfig in config_change_ports:
-    print("#" * 30)
-    node = {
-        "device_model_id": if_cnfig['device_model_id'],
-        "device_model":DEVICE_MODEL[if_cnfig['device_model_id']],
-        "mgmt_ip": if_cnfig['mgmt_ip'],
-        "credentials": credentials
-    }
-    sw = create_device(**node)
-    for port in if_cnfig['interfaces']:
-        print("/" * 30)
-        print(f"Aplicando configuracion sobre interfaz {port['interface_full_name']}")
-        config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
-        sw.deploy_configuration(config)
+    try:
+        print("#" * 30)
+        node = {
+            "device_model_id": if_cnfig['device_model_id'],
+            "device_model":DEVICE_MODEL[if_cnfig['device_model_id']],
+            "mgmt_ip": if_cnfig['mgmt_ip'],
+            "credentials": credentials
+        }
+        sw = create_device(**node)
+        interface_config = []
+        for port in if_cnfig['interfaces']:
+            print("/" * 30)
+            # print(f"Aplicando configuracion sobre interfaz {port['interface_full_name']}")
+            # config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
+            print(f"Creando configuracion sobre interfaz {port['interface_full_name']}")
+            config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
+            interface_config.extend(config)
+        interface_config.extend(["end", "copy run start"])
+
+        print(f"Configuracion creada para equipo {if_cnfig['mgmt_ip']}.")
+        for a in interface_config:
+            print(a)
+        # Aca esta el metodo que aplica la config!!:
+        sw.deploy_configuration(interface_config)
+        time.sleep(device_delay)
+    except Exception as e:
+        print(f"Error al intentar aplicar la configuracion sobre el equipo {if_cnfig['mgmt_ip']}: {e}")
+        continue
