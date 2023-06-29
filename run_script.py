@@ -16,6 +16,15 @@ def read_csv_file(file_path: str):
             data.append(dict(row))
     return data
 
+def create_csv_file(data, filename):
+    keys = data[0].keys() if data else []
+    
+    with open("errors/" + filename, 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=keys)
+        
+        writer.writeheader()
+        writer.writerows(data)
+
 def remove_duplicates_by_key(data, key):
     unique_data = []
     seen = set()
@@ -88,6 +97,7 @@ credentials = {
     'password': psw
 }
 
+failed_devices = []
 config_change_ports = []
 print(f"- Tomando informacion de los dispositivos...")
 for data in unique_data:
@@ -103,41 +113,46 @@ for data in unique_data:
         sw = create_device(**node)
         timestamp = ('{:%d-%m-%Y_%H_%M_%S}'.format(datetime.datetime.now()))
         result = sw.retrieve_information()
-        if not result:
-            sys.exit("No hay datos disponibles del equipo.")
-        json_object = json.dumps(result, indent=4)
-        file_name = "_".join([result['hostname'], timestamp])
+        if result:
+            json_object = json.dumps(result, indent=4)
+            file_name = "_".join([result['hostname'], timestamp])
 
-        with open("backup_configuration/" + file_name + ".json", "w") as outfile:
-            outfile.write(json_object)
+            with open("backup_configuration/" + file_name + ".json", "w") as outfile:
+                outfile.write(json_object)
 
-        with open("backup_configuration/" + file_name + ".conf", "w") as outfile:
-            outfile.write(result['configuration']['cnfg_txt'])
+            with open("backup_configuration/" + file_name + ".conf", "w") as outfile:
+                outfile.write(result['configuration']['cnfg_txt'])
 
-        node['interfaces'] = []
-        for interfc in csv_data:
-            if interfc['mgmt_ip'] == data['mgmt_ip']:
-                node['hostname'] = result['hostname']
-                for if_status in result['interface_status']['interfaces']:
-                    csv_if_name = f"GigabitEthernet 1/{interfc['port_number']}"
-                    if if_status['interface_full_name'] == csv_if_name:
-                        node['interfaces'].append(
-                            dict(
-                                interface_full_name=if_status['interface_full_name'],
-                                link_state=if_status['link_state']
+            node['interfaces'] = []
+            for interfc in csv_data:
+                if interfc['mgmt_ip'] == data['mgmt_ip']:
+                    node['hostname'] = result['hostname']
+                    for if_status in result['interface_status']['interfaces']:
+                        csv_if_name = f"GigabitEthernet 1/{interfc['port_number']}"
+                        if if_status['interface_full_name'] == csv_if_name:
+                            node['interfaces'].append(
+                                dict(
+                                    interface_full_name=if_status['interface_full_name'],
+                                    link_state=if_status['link_state']
+                                )
                             )
-                        )
-        config_change_ports.append(node)
+            config_change_ports.append(node)
+        else:
+            failed_devices.append(data)
+            print("No hay datos disponibles del equipo.")
     except Exception as e:
-        print(f"Error al intentar aplicar la configuracion sobre el equipo {data['mgmt_ip']}: {e}")
+        print(f"Error al intentar tomar la configuracion sobre el equipo {data['mgmt_ip']}: {e}")
+        failed_devices.append(data)
         continue
+
+
+create_csv_file(failed_devices, "error_tomando_info.csv")
+failed_devices = []
 
 print(f"- Estado actual de los puertos:")
 for if_cnfig in config_change_ports:
     for port in if_cnfig['interfaces']:
         print(f"\t -IP Mgmt: {if_cnfig['mgmt_ip']} | Hostname: {if_cnfig['hostname']} | Puerto {port['interface_full_name']} | Estado del puerto: {port['link_state']}")
-
-
 
 print(f"- Normalizando configuracion de los puertos..")
 for if_cnfig in config_change_ports:
@@ -161,11 +176,18 @@ for if_cnfig in config_change_ports:
         interface_config.extend(["end", "copy run start"])
 
         print(f"Configuracion creada para equipo {if_cnfig['mgmt_ip']}.")
-        for a in interface_config:
-            print(a)
+
         # Aca esta el metodo que aplica la config!!:
         sw.deploy_configuration(interface_config)
         time.sleep(device_delay)
     except Exception as e:
         print(f"Error al intentar aplicar la configuracion sobre el equipo {if_cnfig['mgmt_ip']}: {e}")
+        failed_devices.append(
+            dict(
+                device_model_id=DEVICE_MODEL[if_cnfig['device_model_id']],
+                mgmt_ip=if_cnfig['mgmt_ip']
+            )
+        )
         continue
+
+create_csv_file(failed_devices, "errors_aplicando_config.csv")

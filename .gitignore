@@ -6,6 +6,7 @@ __pycache__/
 # Folders
 /backup_configuration
 /input_information
+/errors
 
 # C extensions
 *.so

@@ -11,6 +11,7 @@ Quedando la estructura de archivos de la siguiente manera:
 -|
  |- backup_configuration/
  |- input_information/
+ |- errors/
  |- .gitignore
  |- device_factory.py
  |- device_models.py
@@ -33,3 +34,5 @@ device_model_id,mgmt_ip,port_number
 - **port_number:** Puerto del equipo que desean normalizar. Solo deberan colocar el numero del puerto, por ejemplo el puerto "GigabitEthernet 1/2" tiene como numero de puerto el numero "2".
 
 En la carpeta "backup_configuration" se guarda la configuracion del equipo en texto plano y una version de la configuracion y datos operativos (tabla de mac-address, DDMi, etc) en json. Estos archivos representan el estado del equipo antes de aplicar cualquier cambio.
+
+En la carpeta "errors" se guardara la informacion de aquellos equipos donde no se pudo tomar o aplicar la configuracion.
