@@ -149,15 +149,18 @@ for data in unique_data:
 create_csv_file(failed_devices, "error_tomando_info.csv")
 failed_devices = []
 
+print("###" * 30)
 print(f"- Estado actual de los puertos:")
 for if_cnfig in config_change_ports:
     for port in if_cnfig['interfaces']:
         print(f"\t -IP Mgmt: {if_cnfig['mgmt_ip']} | Hostname: {if_cnfig['hostname']} | Puerto {port['interface_full_name']} | Estado del puerto: {port['link_state']}")
 
+print("###" * 30)
 print(f"- Normalizando configuracion de los puertos..")
 for if_cnfig in config_change_ports:
     try:
-        print("#" * 30)
+        print("----" * 30)
+        print(f"-- Equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}")
         node = {
             "device_model_id": if_cnfig['device_model_id'],
             "device_model":DEVICE_MODEL[if_cnfig['device_model_id']],
@@ -167,18 +170,17 @@ for if_cnfig in config_change_ports:
         sw = create_device(**node)
         interface_config = []
         for port in if_cnfig['interfaces']:
-            print("/" * 30)
-            # print(f"Aplicando configuracion sobre interfaz {port['interface_full_name']}")
-            # config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
-            print(f"Creando configuracion sobre interfaz {port['interface_full_name']}")
+            print(f"\t - Creando configuracion de interfaz {port['interface_full_name']}")
             config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
             interface_config.extend(config)
         interface_config.extend(["end", "copy run start"])
 
-        print(f"Configuracion creada para equipo {if_cnfig['mgmt_ip']}.")
+        print(f"-- Aplicando configuracion en equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
 
         # Aca esta el metodo que aplica la config!!:
         sw.deploy_configuration(interface_config)
+        print("#" * 30)
+        print(f"Esperando {device_delay} seg antes de aplicar la configuracion en el siguiente equipo.")
         time.sleep(device_delay)
     except Exception as e:
         print(f"Error al intentar aplicar la configuracion sobre el equipo {if_cnfig['mgmt_ip']}: {e}")
