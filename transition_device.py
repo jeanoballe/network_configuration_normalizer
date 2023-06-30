@@ -692,7 +692,8 @@ class TransitionDevice():
                 'host': self.mgmt_ip,
                 'username': self.credentials['username'],
                 'password': self.credentials['password'],
-                'global_delay_factor': 2
+                'global_delay_factor': 5,
+                'timeout': 30
             }
 
             print("Conectando al equipo: "+self.mgmt_ip)
