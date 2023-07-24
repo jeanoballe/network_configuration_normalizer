@@ -1,3 +1,4 @@
+import logging
 import datetime
 import json
 import csv
@@ -6,7 +7,16 @@ import time
 from device_models import DEVICE_MODEL
 from device_factory import create_device
 from getpass import getpass
+from logger import logger
 
+
+def read_json_file(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        return data
+    except FileNotFoundError:
+        return None
 
 def read_csv_file(file_path: str):
     data = []
@@ -33,7 +43,6 @@ def remove_duplicates_by_key(data, key):
             seen.add(item[key])
             unique_data.append(item)
     return unique_data
-
 
 def config_interface_template(interface_name: str, device_model_id: str):
     if device_model_id == "1":
@@ -83,26 +92,37 @@ def config_interface_template(interface_name: str, device_model_id: str):
 
 device_delay = 15
 file_path = 'input_information/data.csv'
-print(f"- Leyendo informacion de archivo: {file_path}")
+logger.info(f"- Leyendo informacion de archivo: {file_path}")
 csv_data = read_csv_file(file_path)
-print(f"- La siguiente informacion fue leida del archivo: {file_path}")
+logger.info(f"- La siguiente informacion fue leida del archivo: {file_path}")
 for iface in csv_data:
-    print(f"\t - IP Mgmt: {iface['mgmt_ip']} | Device: {DEVICE_MODEL[iface['device_model_id']]['model']} | Port: GigabitEthernet 1/{iface['port_number']}")
+    logger.info(f"\t - IP Mgmt: {iface['mgmt_ip']} | Device: {DEVICE_MODEL[iface['device_model_id']]['model']} | Port: GigabitEthernet 1/{iface['port_number']}")
 unique_data = remove_duplicates_by_key(csv_data, 'mgmt_ip')
-print(f"- Se procedera a ejecutar la lectura de configuracion de los equipo informados en el archivo. Para eso necesitamos que ingrese sus credenciales:")
-user = input('Ingrese su usuario: ')
-psw = getpass()
-credentials = {
-    'username': user,
-    'password': psw
-}
+
+logger.info(f"- Leyendo credenciales de archivo 'credentials.json'...")
+credentials = read_json_file("credentials.json")
+
+if credentials:
+    if not credentials.get("username", False):
+        logger.info(f"- Key 'username' faltante en archivo 'credentials.json'. Ingrese el usurio:")
+        credentials['username'] = input("- Usuario: ")
+    if not credentials.get("password", False):
+        logger.info(f"- Key 'password' faltante en archivo 'credentials.json'. Ingrese la constraseña:")
+        credentials['password'] = getpass()
+else:
+    logger.info(f"- Credenciales no encontradas en archivo 'credentials.json'. Ingrese sus credenciales:")
+    credentials = {}
+    credentials['username'] = input("- Usuario: ")
+    credentials['password'] = getpass()
+
+logger.info(f"- Se procedera a ejecutar la lectura de configuracion de los equipo informados en el archivo.")
 
 failed_devices = []
 config_change_ports = []
-print(f"- Tomando informacion de los dispositivos...")
+logger.info(f"- Tomando informacion de los dispositivos...")
 for data in unique_data:
     try:
-        print("#" * 30)
+        logger.info("#" * 30)
 
         node = {
             "device_model_id": data['device_model_id'],
@@ -139,9 +159,9 @@ for data in unique_data:
             config_change_ports.append(node)
         else:
             failed_devices.append(data)
-            print("No hay datos disponibles del equipo.")
+            logger.info("No hay datos disponibles del equipo.")
     except Exception as e:
-        print(f"Error al intentar tomar la configuracion sobre el equipo {data['mgmt_ip']}: {e}")
+        logger.info(f"Error al intentar tomar la configuracion sobre el equipo {data['mgmt_ip']}: {e}")
         failed_devices.append(data)
         continue
 
@@ -149,41 +169,41 @@ for data in unique_data:
 create_csv_file(failed_devices, "error_tomando_info.csv")
 failed_devices = []
 
-print("###" * 30)
-print(f"- Estado actual de los puertos:")
+logger.info("###" * 30)
+logger.info(f"- Estado actual de los puertos:")
 for if_cnfig in config_change_ports:
     for port in if_cnfig['interfaces']:
-        print(f"\t -IP Mgmt: {if_cnfig['mgmt_ip']} | Hostname: {if_cnfig['hostname']} | Puerto {port['interface_full_name']} | Estado del puerto: {port['link_state']}")
+        logger.info(f"\t -IP Mgmt: {if_cnfig['mgmt_ip']} | Hostname: {if_cnfig['hostname']} | Puerto {port['interface_full_name']} | Estado del puerto: {port['link_state']}")
 
-print("###" * 30)
-print(f"- Normalizando configuracion de los puertos..")
+logger.info("###" * 30)
+logger.info(f"- Normalizando configuracion de los puertos..")
 for if_cnfig in config_change_ports:
     try:
-        print("----" * 30)
-        print(f"-- Equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}")
+        logger.info("----" * 30)
+        logger.info(f"-- Equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}")
         node = {
             "device_model_id": if_cnfig['device_model_id'],
-            "device_model":DEVICE_MODEL[if_cnfig['device_model_id']],
+            "device_model": DEVICE_MODEL[if_cnfig['device_model_id']],
             "mgmt_ip": if_cnfig['mgmt_ip'],
             "credentials": credentials
         }
         sw = create_device(**node)
         interface_config = []
         for port in if_cnfig['interfaces']:
-            print(f"\t - Creando configuracion de interfaz {port['interface_full_name']}")
+            logger.info(f"\t - Creando configuracion de interfaz {port['interface_full_name']}")
             config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
             interface_config.extend(config)
         interface_config.extend(["end", "copy run start"])
 
-        print(f"-- Aplicando configuracion en equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
+        logger.info(f"-- Aplicando configuracion en equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
 
         # Aca esta el metodo que aplica la config!!:
         sw.deploy_configuration(interface_config)
-        print("#" * 30)
-        print(f"Esperando {device_delay} seg antes de aplicar la configuracion en el siguiente equipo.")
+        logger.info("#" * 30)
+        logger.info(f"Esperando {device_delay} seg antes de aplicar la configuracion en el siguiente equipo.")
         time.sleep(device_delay)
     except Exception as e:
-        print(f"Error al intentar aplicar la configuracion sobre el equipo {if_cnfig['mgmt_ip']}: {e}")
+        logger.info(f"Error al intentar aplicar la configuracion sobre el equipo {if_cnfig['mgmt_ip']}: {e}")
         failed_devices.append(
             dict(
                 device_model_id=DEVICE_MODEL[if_cnfig['device_model_id']],

@@ -7,6 +7,8 @@ __pycache__/
 /backup_configuration
 /input_information
 /errors
+output_log.txt
+credentials.json
 
 # C extensions
 *.so

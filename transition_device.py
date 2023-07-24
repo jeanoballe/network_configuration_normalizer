@@ -1,4 +1,6 @@
 import re
+import logging
+from logger import logger
 from netmiko import ConnectHandler
 
 
@@ -696,7 +698,7 @@ class TransitionDevice():
                 'timeout': 30
             }
 
-            print("Conectando al equipo: "+self.mgmt_ip)
+            logger.info("Conectando al equipo: "+self.mgmt_ip)
             net_connect = None
             net_connect = ConnectHandler(**access_switch)
 
@@ -707,7 +709,7 @@ class TransitionDevice():
 
             # Execute Show commands
             for command in self._get_commands():
-                print(
+                logger.info(
                     command['msg'] + ": " +
                     command['command']
                 )
@@ -717,7 +719,7 @@ class TransitionDevice():
                         command['command']
                     )
                     if len(show_content.split("\n")) < 4:
-                        print(
+                        logger.info(
                             "Some error occurred: The show " +
                             "output is too short. Retrying..."
                         )
@@ -734,18 +736,17 @@ class TransitionDevice():
             node_information = self._serializer(sw_txt_information)
             node_information['device_model_id'] = self.device_model_id
             node_information['mgmt_ip'] = self.mgmt_ip
-            print("Creando SCO ID basado en Hostname del dispositivo...")
+            logger.info("Creando SCO ID basado en Hostname del dispositivo...")
             node_information['sco_id'] = [int(
                 re.findall(r'\d+', node_information['hostname'])[0])]
-            print("SCO ID:", node_information['sco_id'])
-            print(
+            logger.info(
                 "La informacion del equipo " +
                 node_information['hostname'] + " fue tomada con exito."
             )
             return node_information
         except BaseException as e:
-            print(e)
-            print("No se pudo obtener/guardar"
+            logger.info(e)
+            logger.info("No se pudo obtener/guardar"
                   " la informacion del equipo {}".format(
                         self.mgmt_ip))
         finally:
@@ -754,7 +755,7 @@ class TransitionDevice():
 
     def deploy_configuration(self, configuration: list = []):
         if configuration:
-            print("Iniciando el envio de configuracion.")
+            logger.info("Iniciando el envio de configuracion.")
             try:
                 access_switch = {
                     'device_type': 'cisco_ios',
@@ -764,21 +765,21 @@ class TransitionDevice():
                     'global_delay_factor': 2
                 }
 
-                print(f"Conectando al equipo: {self.mgmt_ip}")
+                logger.info(f"Conectando al equipo: {self.mgmt_ip}")
                 net_connect = None
                 net_connect = ConnectHandler(**access_switch)
                 net_connect.find_prompt()
                 output = net_connect.send_config_set(configuration)
-                print(output)
+                logger.info(output)
             except BaseException as e:
-                print(e)
-                print(
+                logger.info(e)
+                logger.info(
                     f"No se logro aplicar la configuracion al equipo {self.mgmt_ip}")
             finally:
                 if net_connect:
                     net_connect.disconnect()
         else:
-            print("La configuracion esta vacia.")
+            logger.info("La configuracion esta vacia.")
 
 
 class S4224(TransitionDevice):
