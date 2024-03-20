@@ -190,18 +190,27 @@ for if_cnfig in config_change_ports:
         sw = create_device(**node)
         interface_config = []
         for port in if_cnfig['interfaces']:
-            logger.info(f"\t - Creando configuracion de interfaz {port['interface_full_name']}")
-            config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
-            interface_config.extend(config)
-        interface_config.extend(["end", "copy run start"])
 
-        logger.info(f"-- Aplicando configuracion en equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
+            if port['link_state'] != "Down":
+                logger.info(f"\t - La interfaz {port['interface_full_name']} esta UP, por lo que no se cambiara la configuracion!!!!")
+            else:
+                logger.info(f"\t - Creando configuracion de interfaz {port['interface_full_name']}")
+                config = config_interface_template(interface_name=port['interface_full_name'], device_model_id=if_cnfig['device_model_id'])
+                interface_config.extend(config)
 
-        # Aca esta el metodo que aplica la config!!:
-        sw.deploy_configuration(interface_config)
-        logger.info("#" * 30)
-        logger.info(f"Esperando {device_delay} seg antes de aplicar la configuracion en el siguiente equipo.")
-        time.sleep(device_delay)
+        if interface_config:
+            interface_config.extend(["end", "copy run start"])
+
+            logger.info(f"-- Aplicando configuracion en equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
+
+            # Aca esta el metodo que aplica la config!!:
+            sw.deploy_configuration(interface_config)
+            logger.info(f"-- Configuracion aplicada correctamente en el equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
+            logger.info("#" * 30)
+            logger.info(f"Esperando {device_delay} seg antes de aplicar la configuracion en el siguiente equipo.")
+            time.sleep(device_delay)
+        else:
+            logger.info(f"-- No existe configuracion a aplicar en equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
     except Exception as e:
         logger.info(f"Error al intentar aplicar la configuracion sobre el equipo {if_cnfig['mgmt_ip']}: {e}")
         failed_devices.append(
