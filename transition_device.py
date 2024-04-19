@@ -765,19 +765,25 @@ class TransitionDevice():
                     'global_delay_factor': 2
                 }
 
+                output = False
+
                 logger.info(f"Conectando al equipo: {self.mgmt_ip}")
-                net_connect = None
+                net_connect = False
                 net_connect = ConnectHandler(**access_switch)
                 net_connect.find_prompt()
                 output = net_connect.send_config_set(configuration)
-                logger.info(output)
-            except BaseException as e:
-                logger.info(e)
-                logger.info(
-                    f"No se logro aplicar la configuracion al equipo {self.mgmt_ip}")
-            finally:
+
                 if net_connect:
                     net_connect.disconnect()
+
+                if output:
+                    logger.info(output)
+                    return output
+
+            except BaseException as e:
+                logger.error(e)
+                logger.error(
+                    f"No se logro aplicar la configuracion al equipo {self.mgmt_ip}")
         else:
             logger.info("La configuracion esta vacia.")
 
