@@ -95,6 +95,7 @@ file_path = 'input_information/data.csv'
 logger.info(f"- Leyendo informacion de archivo: {file_path}")
 csv_data = read_csv_file(file_path)
 logger.info(f"- La siguiente informacion fue leida del archivo: {file_path}")
+logger.info(f"- Informacion cruda: {csv_data}")
 for iface in csv_data:
     logger.info(f"\t - IP Mgmt: {iface['mgmt_ip']} | Device: {DEVICE_MODEL[iface['device_model_id']]['model']} | Port: GigabitEthernet 1/{iface['port_number']}")
 unique_data = remove_duplicates_by_key(csv_data, 'mgmt_ip')
