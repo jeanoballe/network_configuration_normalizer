@@ -20,7 +20,7 @@ def read_json_file(file_path):
 
 def read_csv_file(file_path: str):
     data = []
-    with open(file_path, 'r') as csv_file:
+    with open(file_path, 'r', encoding='utf-8-sig') as csv_file:
         reader = csv.DictReader(csv_file)
         for row in reader:
             data.append(dict(row))
