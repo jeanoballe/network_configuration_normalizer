@@ -217,9 +217,11 @@ if config_change_ports:
                 else:
                     logger.error(f"No se logro aplicar la configuracion sobre el equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']} - Port {port['interface_full_name']}")
                     failed_config_devices.append(
-                        device_model_id=if_cnfig['device_model_id'],
-                        mgmt_ip=if_cnfig['mgmt_ip'],
-                        port_number=port['interface_full_name'].replace("GigabitEthernet 1/", "")
+                        dict(
+                            device_model_id=if_cnfig['device_model_id'],
+                            mgmt_ip=if_cnfig['mgmt_ip'],
+                            port_number=port['interface_full_name'].replace("GigabitEthernet 1/", "")
+                        )
                     )
             else:
                 logger.info(f"-- No existe configuracion a aplicar en equipo {if_cnfig['hostname']} - {if_cnfig['mgmt_ip']}.")
